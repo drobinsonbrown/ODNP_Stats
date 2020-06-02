@@ -1,0 +1,124 @@
+from simtk.openmm.app import *
+from simtk.openmm import *
+from simtk.unit import *
+from sys import stdout
+from parmed import gromacs
+from parmed import unit as u
+#from dcdreporter import DCDReporter
+import parmed as pmd
+import time
+from openmmtools import *
+import mdtraj as md
+import mdtraj.reporters
+import numpy as np
+import pytraj as pt
+#import odnp_dynamics as odnp
+#import waterorient_P1_bulk as waterorient_P1
+#import waterorient_P2_bulk as waterorient_P2
+#import hbonds_int_bulk as hbonds
+#import diffusivity
+
+fname = 'water4box'
+f = open("sim_{}.log".format(fname), "w")
+NumberAtomsInChains = 29
+
+''' State Variables ''' 
+NPTensemble = True
+Pressure = 1.01325
+barostatfreq = 20
+Temp = 290
+VolumeTolerance = 0.001
+
+
+'''  Simulation Specifications '''
+useLJPME = False
+f.write('use LJPME {}. \n'.format(useLJPME))
+tail = True
+f.write('use dispersion correction {}. \n'.format(tail))
+
+ps = 1000 # definition of a picosecond
+ns = 1000000 # definition of a nanosecond
+dt = 1 # with a time step of 1 fs
+writeFreqTimeShort = 10 # Write to trajectory file every 0.01 ps
+writeFreqTimeLong = 100 # write to trajectory file every 0.1 ps
+writeFreqTime_Thermo = 1000 # Write to "thermo" file every 1 ps
+#writefreq  = int(writeFreqTime/dt)    # 200 fs
+#totalwrites = ns*1E6/writeFreqTime # convert to fs and divide by write frequency
+
+''' Platform specifications. '''
+# Change the argument below to "CPU" or "CUDA" or "OpenCL"to specify a platform 
+#platform = Platform.getPlatformByName('CPU')
+platform = Platform.getPlatformByName('OpenCL') 
+#platform = Platform.getPlatformByName('CUDA')   
+
+# Uncomment line below to run on multiple GPUs
+#properties = {'DeviceIndex': '0,1', 'Precision': 'double'}
+properties = {'DeviceIndex': '0', 'Precision': 'mixed'}
+
+# sets the number of threads to use. Usually no more than the number of logical units. 
+#properties = {'Threads': '10'}
+
+''' Input files and system object creation. '''
+
+prmtop = 'water4box.prmtop'
+temp_top = pmd.amber.AmberFormat(prmtop)
+for i in temp_top.parm_data:
+	print (i)
+
+#gro = gromacs.GromacsTopologyFile('box.gro')
+top = AmberPrmtopFile(prmtop)
+topName = 'water4box.pdb'
+pdb = PDBFile('water4box.pdb')
+
+''' ==== Conduct equilibration run in NVT ensemble ==== '''
+f = open("sim_{}.log".format(fname), "a")
+f.write('Conducting Production NVE run. \n')
+
+
+system = top.createSystem(nonbondedMethod=PME, nonbondedCutoff=1*nanometer, ewaldErrorTolerance=0.0001, rigidWater=True)
+
+integrator = LangevinIntegrator(290*kelvin, 3/picosecond, 0.001*u.picosecond)
+
+simulation = Simulation(top.topology, system, integrator, properties)
+simulation.loadState('state0.xml')
+simulation.context.applyConstraints(1e-12) 
+
+simulation.reporters.append(StateDataReporter(stdout, writeFreqTime_Thermo, step=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, volume=True, density=True, speed=True))
+simulation.reporters.append(StateDataReporter('Thermo_nvt_equilibration.out', writeFreqTime_Thermo, step=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, volume=True, density=True, speed=True))
+
+simulation.step(ns)
+simulation.saveState('postNVT.xml')
+
+''' ==== Conduct production run in NVE ensemble ==== '''
+f = open("sim_{}.log".format(fname), "a")
+f.write('Conducting Production NVE run. \n')
+
+
+system = top.createSystem(nonbondedMethod=PME, nonbondedCutoff=1*nanometer, ewaldErrorTolerance=0.0001, rigidWater=True)
+
+integrator = VerletIntegrator(0.001*u.picosecond)
+
+simulation = Simulation(top.topology, system, integrator, platform, properties)
+simulation.loadState('postNVT.xml')
+#simulation.context.setPeriodicBoxVectors(Vectors[0],Vectors[1],Vectors[2]) # Set the periodic box vectors
+simulation.context.applyConstraints(1e-12) 
+
+simulation.reporters.append(StateDataReporter(stdout, writeFreqTime_Thermo, step=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, volume=True, density=True, speed=True))
+simulation.reporters.append(StateDataReporter('Thermo_nve_burnin.out', writeFreqTime_Thermo, step=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, volume=True, density=True, speed=True))
+
+simulation.step(ns)
+
+# obtain fast time dynamics (survival probabilities and OACF)
+simulation.reporters.append(StateDataReporter(stdout, writeFreqTime_Thermo, step=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, volume=True, density=True, speed=True))
+simulation.reporters.append(StateDataReporter('Thermo_nve_production_short.out', writeFreqTime_Thermo, step=True, potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True, volume=True, density=True, speed=True))
+
+simulation.reporters.append(app.dcdreporter.DCDReporter('nve_production_output_wrapped0_short.dcd', writeFreqTimeShort, enforcePeriodicBox=True))
+	
+simulation.step(ns)
+
+### (insert other dynamics)
+trajName = 'nve_production_output_wrapped0_short.dcd'
+#hbonds.HBsurvival(topName,trajName)
+#waterorient_P1.P1(topName,trajName)
+#waterorient_P2.P2(topName,trajName)
+#diffusivity.translation(topName,trajName)

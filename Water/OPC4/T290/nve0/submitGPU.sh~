@@ -1,0 +1,4 @@
+#!/bin/bash
+
+python --version
+python simulateOpenmm_Water_nve.py

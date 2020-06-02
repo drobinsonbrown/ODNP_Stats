@@ -1,0 +1,107 @@
+import numpy as np
+import os
+import matplotlib.pyplot as plt
+from scipy.optimize import curve_fit
+
+### model to fit the ACF to
+def fitfunc(t,a1,a2,tau1,tau2,tau3):
+    #a1 = params[0]
+    #a2 = params[1]
+    #tau1 = params[2]
+    #tau2 = params[3]
+    #tau3 = params[4]
+    return a1*np.exp(-t/tau1)+a2*np.exp(-t/tau2)+(1.0-a1-a2)*np.exp(-t/tau3)
+
+### spectral density function resulting from tri-exponential model
+def spectral(freq,a1,a2,tau1,tau2,tau3):
+    #a1 = params[0]
+    #a2 = params[1]
+    #tau1 = params[2]
+    #tau2 = params[3]
+    #tau3 = params[4]
+    a3 = 1.0-a1-a2
+    return (a1*tau1)/(1+freq**2.0*tau1**2) + (a2*tau2)/(1+freq**2.0*tau2**2) + (a3*tau3)/(1+freq**2.0*tau3**2)
+
+# define bootstrapping procedure parameters
+nsamp = 10 # sample size
+nresamp = 1000 # number of resampling steps
+
+# BootStrap!!!
+
+np.random.seed(123456)
+index = 0
+
+# load autocorrF0 samples
+time = np.loadtxt('autocorrF0_1.txt')[:,0]
+Corrs = np.zeros((10,len(time)))
+for i in np.int64(np.linspace(0,9,10)):
+    Corrs[i,:] = np.loadtxt('autocorrF0_'+str(i)+'.txt')[:,1]
+
+meanCorr = np.zeros((nresamp,len(time)))
+meanCorrFit = np.zeros((nresamp,len(time)))
+k_sigma = np.zeros(nresamp)
+xi = np.zeros(nresamp)
+while index < nresamp:
+    ### select nresamp number of average ACFs
+    idx = np.random.choice(Corrs.shape[0],nsamp)
+    meanCorr[index,:] = np.mean(Corrs[idx,:],axis=0)
+    plt.plot(time,meanCorr[index,:])
+    print(index)
+    if index==384:
+        plt.show()
+    #plt.close()
+    ### perform a fit to the ACF
+    pguess = [0.3,0.4,35.0,5.0,0.2]
+    popt,pcov = curve_fit(fitfunc,time,meanCorr[index],p0 = pguess)
+    print(popt)
+    meanCorrFit[index,:] = fitfunc(time,popt[0],popt[1],popt[2],popt[3],popt[4])
+    
+    ### analytical fourier transform considering the fit parameters
+    larmorS = 1/17.0
+    larmorI = 1/11000.0
+    JS = spectral(larmorS,popt[0],popt[1],popt[2],popt[3],popt[4])
+    JI = spectral(larmorI,popt[0],popt[1],popt[2],popt[3],popt[4])
+    k_sigma[index] = 5*JS
+    xi[index] = 5.0*JS/(3.0*JI+7.0*JS)
+    index+=1
+plt.show()
+print(np.mean(k_sigma))
+
+k_sigma = np.sort(k_sigma)
+xi = np.sort(xi)
+
+# define the CI indices for 95% CI
+upperind = int(np.ceil(nresamp*.975))-1
+lowerind = int(np.floor(nresamp*.125))-1
+print(upperind,lowerind)
+
+# Find means for each
+k_sigmaMean = (k_sigma[int(nresamp/2)-1]+k_sigma[int(nresamp/2)])/2
+xiMean = (xi[int(nresamp/2)-1]+xi[int(nresamp/2)])/2*100
+
+# find CI for each
+k_sigmaCI = np.array([k_sigma[lowerind],k_sigma[upperind]])
+xiCI = 100*np.array([xi[lowerind],xi[upperind]])
+
+print('The lower CI value, mean and upper CI value for a 95% confidence interval:\n')
+print('k_sigma')
+print(k_sigmaCI[0],k_sigmaMean,k_sigmaCI[1])
+print('xi')
+print(xiCI[0],xiMean,xiCI[1])
+
+
+nbins = 10
+
+plt.hist(k_sigma,bins=nbins)
+plt.xlabel('Mean $k_{\sigma}$')
+plt.ylabel('frequency')
+plt.title('Number of resamples: {}\n Number of data points per resample: {} \n'.format(nresamp,nsamp)) 
+plt.savefig('k_sigma_stats.png')
+plt.close()
+
+plt.hist(xi,bins=nbins)
+plt.xlabel('Mean xi')
+plt.ylabel('frequency')
+plt.title('Number of resamples: {}\n Number of data points per resample: {} \n'.format(nresamp,nsamp)) 
+plt.savefig('xi_stats.png')
+plt.close()

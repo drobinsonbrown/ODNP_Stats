@@ -1,0 +1,34 @@
+import os,sys
+import glob
+import numpy as np
+import matplotlib
+#try:
+#    matplotlib.use('Agg')
+#except ValueError:
+#    pass
+import matplotlib.pyplot as plt
+
+Ree265 = np.loadtxt(glob.glob('*265*.txt')[0])/10.0
+Ree275 = np.loadtxt(glob.glob('*275*.txt')[0])
+Ree290 = np.loadtxt(glob.glob('*290*.txt')[0])
+Ree310 = np.loadtxt(glob.glob('*310*.txt')[0])
+Ree340 = np.loadtxt(glob.glob('*340*.txt')[0])
+
+Ree265, bin265 = np.histogram(Ree265,bins=20,density=True)
+Ree275, bin275 = np.histogram(Ree275,bins=20,density=True)
+Ree290, bin290 = np.histogram(Ree290,bins=20,density=True)
+Ree310, bin310 = np.histogram(Ree310,bins=20,density=True)
+Ree340, bin340 = np.histogram(Ree340,bins=20,density=True)
+
+l = len(bin265)
+
+plt.plot(bin265[:l-1],Ree265,label='265 K')
+plt.plot(bin275[:l-1],Ree275,label='275 K')
+plt.plot(bin290[:l-1],Ree290,label='290 K')
+plt.plot(bin310[:l-1],Ree310,label='310 K')
+plt.plot(bin340[:l-1],Ree340,label='340 K')
+
+plt.xlabel(r'$R_{ee}$ [nm]')
+plt.legend()
+plt.savefig('distributions.png')
+plt.show()

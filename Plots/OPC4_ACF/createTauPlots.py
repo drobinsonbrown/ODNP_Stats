@@ -1,0 +1,152 @@
+import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
+import glob
+import sys,os
+import re
+
+matplotlib.rcParams.update({'figure.figsize':[8.0,6.0]})
+matplotlib.rcParams.update({'font.size':18.0})
+
+def main(args):    
+    try:
+        prefix = args[0]
+    except IndexError:
+        prefix = 'tau_autocorrF0'
+        
+    # load ACF data
+    if 'number' in prefix:
+        yaxis = r'$ln\tau_{Survival}$'
+    elif 'HB' in prefix:
+        yaxis = r'$ln\tau_{HB}$'
+    elif 'P1' in prefix:
+        yaxis = r'$ln\tau_{1}$'
+    elif 'P2' in prefix:
+        yaxis = r'$ln\tau_{2}$'
+    elif 'F0' in prefix:
+        yaxis = r'$ln\tau_{ODNP}$'
+        
+    names = glob.glob(prefix+'_'+'Water'+'*.txt')
+    length = len(names)
+    T = np.zeros(length)
+    tau = np.zeros(length)
+    tau_low = np.zeros(length)
+    tau_high = np.zeros(length)
+    for i,name in enumerate(names):
+        pattern = '(\d{3})\D'
+        T[i] = float(re.findall(pattern, name)[0])
+        T[i] = 1/T[i]
+        data = np.loadtxt(name)
+        tau[i] = data[1]
+        
+        tau_low[i] = data[0]/tau[i]
+        tau_high[i] = data[2]/tau[i]
+
+        tau[i] = np.log(tau[i])
+        
+    newInd = np.argsort(T)
+    T = T[newInd]
+    tau = tau[newInd]
+    tau_high = tau_low[newInd]
+    tau_low = tau_low[newInd]
+      
+    fig, ax1 = plt.subplots()
+ 
+    for i,x in enumerate(T):
+        
+        ax1.errorbar(x,tau[i],yerr=[[tau_low[i]],[tau_high[i]]],fmt='r.-',
+                     label='Bulk Water',capsize=2)
+
+    #ztau, cov = np.polyfit(T,tau,1,w=tau_low,cov=True)
+    #print(ztau[0],np.sqrt(cov))
+    #ptau = np.poly1d(ztau)
+    #ax1.plot(T,ptau(T),'r.--',label=prefix)
+    ax1.set_xlabel(r'$1/T[K^{-1}]$')
+    ax1.set_ylabel(yaxis)
+    #ax1.hold(True)
+    
+    names = glob.glob(prefix+'_'+'4HTEMPO'+'*.txt')
+    length = len(names)
+    T = np.zeros(length)
+    tau = np.zeros(length)
+    tau_low = np.zeros(length)
+    tau_high = np.zeros(length)
+    for i,name in enumerate(names):
+        pattern = '(\d{3})\D'
+        T[i] = float(re.findall(pattern, name)[0])
+        #T[i] = 1/T[i]
+        data = np.loadtxt(name)
+        tau[i] = data[1]
+        
+        tau_low[i] = data[0]
+        tau_high[i] = data[2]
+        #tau[i] = np.log(tau[i])
+
+    newInd = np.argsort(T)
+    T = T[newInd]
+    tau = tau[newInd]
+    tau_high = tau_low[newInd]
+    tau_low = tau_low[newInd]
+
+    output = np.transpose(np.vstack((T,tau,tau_low,tau_high)))                   
+    print(output)                                                              
+    np.savetxt('TauvT_4HTEMPO.txt',output)
+ 
+    for i,x in enumerate(T):
+        
+        ax1.errorbar(x,tau[i],yerr=[[tau_low[i]],[tau_high[i]]],fmt='b.-',
+                     label=prefix,capsize=2)
+
+#    ztau, cov = np.polyfit(T,tau,1,w=tau_low,cov=True)
+#    print(ztau[0],np.sqrt(cov[0,0]))
+#    ptau = np.poly1d(ztau)
+#    ax1.plot(T,ptau(T),'b.--',label=prefix)
+    ax1.set_xlabel(r'$1/T[K^{-1}]$')
+    ax1.set_ylabel(yaxis)
+    #plt.hold(True)
+    
+    names = glob.glob(prefix+'_'+'PEO12'+'*.txt')
+    length = len(names)
+    T = np.zeros(length)
+    tau = np.zeros(length)
+    tau_low = np.zeros(length)
+    tau_high = np.zeros(length)
+    for i,name in enumerate(names):
+        pattern = '(\d{3})\D'
+        T[i] = float(re.findall(pattern, name)[0])
+        #T[i] = 1/T[i]
+        data = np.loadtxt(name)
+        tau[i] = data[1]
+        #tau[i] = np.log(tau[i])
+        tau_low[i] = data[0]
+        tau_high[i] = data[2]
+        #tau[i] = np.log(tau[i])
+
+    newInd = np.argsort(T)
+    T = T[newInd]
+    tau = tau[newInd]
+    tau_high = tau_low[newInd]
+    tau_low = tau_low[newInd]
+
+    output = np.transpose(np.vstack((T,tau,tau_low,tau_high)))                   
+    print(output)                                                              
+    np.savetxt('TauvT_PEO12.txt',output)
+    
+    for i,x in enumerate(T):
+        
+        ax1.errorbar(x,tau[i],yerr=[[tau_low[i]],[tau_high[i]]],fmt='g.-',
+                     label=prefix,capsize=2)
+
+  #  ztau, cov = np.polyfit(T,tau,1,w=tau_low,cov=True)
+  #  print(ztau[0],np.sqrt(cov[0,0]))
+  #  ptau = np.poly1d(ztau)
+  #  ax1.plot(T,ptau(T),'g.--',label=prefix)
+    ax1.set_xlabel(r'$1/T[K^{-1}]$')
+    ax1.set_ylabel(yaxis)
+    
+    plt.savefig(prefix+'.png',dpi=1000)
+    plt.savefig(prefix+'.eps',format='eps')
+    plt.show()
+    
+if __name__ == "__main__":
+  main(sys.argv[1:])

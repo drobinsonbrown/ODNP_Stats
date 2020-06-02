@@ -1,0 +1,5 @@
+for i in {0..9}
+do
+    sshpass -p 'Drob101618776' scp drobins@pod.cnsi.ucsb.edu:/home/drobins/PEO_TEMPO_GPU/ODNP_PAPER/Water/OPC4/T290/nve$i/weighted* ./nve$i
+
+done

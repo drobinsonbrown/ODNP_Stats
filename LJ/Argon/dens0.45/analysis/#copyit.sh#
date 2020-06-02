@@ -1,0 +1,10 @@
+for i in {0..9}
+do
+
+    cp ../nve$i/autocorrF0.txt ./autocorrF0_$i.txt
+    cp ../nve$i/autocorrF1.txt ./autocorrF1_$i.txt
+    cp ../nve$i/autocorrF2.txt ./autocorrF2_$i.txt
+
+    mv autocorr* ./ODNP
+
+done

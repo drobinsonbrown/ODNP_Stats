@@ -1,0 +1,21 @@
+#!/bin/bash
+
+INFILE=${1}
+
+for i in {1,3,10,50,100}
+do
+    #echo ${INFILE}
+    original=$(pwd)
+    cd ../../${INFILE}/OPC4/T290/concentration/N$i/analysis/
+    cwd=$(pwd)
+    scriptDIR=/home/dennis/Documents/PhD/Winter20/ODNP_PAPER/scripts
+    echo $scriptDIR
+    
+    cd $cwd/Survival
+    python $scriptDIR/bootstrap_ACF.py numberCorr
+    cp avgnumber* $original/avgnumberCorr_${INFILE}_$i.txt
+    cp tau_numberCorr.txt $original/tau_numberCorr_${INFILE}_$i.txt
+    
+    cd $original
+done
+

@@ -1,0 +1,94 @@
+import numpy as np
+import os,sys
+import matplotlib
+try:
+    os.environ["DISPLAY"]
+except KeyError:
+    showPlots = False
+    matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+def J(z,omega,D_local,d):
+    D_SL = 4.1e-10
+    #d = 4.7e-10
+    NA = 6.022e23
+    hbar = 1.054572e-34
+    gammaH = 4.258e7
+    gammaE = gammaH/1.51671e-3
+    mu0 = 4.0*np.pi*1e-7
+    c = 32000.0/(6480.0*np.pi)*NA*0.75*(hbar*gammaH*gammaE*mu0)**2.0/(d*(D_SL+D_local))
+
+    tau_rot = 5.0
+    n = 20
+    
+    J_FFHS = c*np.real( (1.0+z/4.0) / (1.0+z+4.0*z**2.0/9.0+z**3.0/9.0) )
+    J_rot = c*np.real(tau_rot/(1.0+1j*omega*tau_rot))
+    
+    return J_FFHS+n*J_rot
+    
+def ksigma(B0,D_local,d):
+    D_SL = 4.1e-10
+    gammaH = 4.258e7
+    gammaE = gammaH/1.51671e-3
+
+    tau = d**2.0/(D_local+D_SL)
+
+    omegaI = gammaH*B0*2.0*np.pi
+    omegaS = gammaE*B0*2.0*np.pi
+    zI = np.sqrt(1j*omegaI*tau)
+    zS = np.sqrt(1j*omegaS*tau)
+
+    Jminus = J(zI,(omegaS-omegaI),D_local,d)
+    Jplus = J(zS,(omegaS+omegaI),D_local,d)
+
+    return 6.0*Jminus - Jplus
+
+def krho(B0,D_local,d):
+    D_SL = 4.1e-10
+    #d = 4.7e-10
+    gammaH = 4.258e7
+    gammaE = gammaH/1.51671e-3
+
+    tau = d**2.0/(D_local+D_SL)
+
+    omegaI = gammaH*B0*2.0*np.pi
+    omegaS = gammaE*B0*2.0*np.pi
+    zI = np.sqrt(1j*omegaI*tau)
+    zS = np.sqrt(1j*omegaS*tau)
+
+    Jminus = J(zI,(omegaS-omegaI),D_local,d)
+    Jplus = J(zS,(omegaS+omegaI),D_local,d)
+    JI = J(zS,omegaI,D_local,d)
+    
+    return 6.0*Jminus + 3.0*JI +  Jplus
+
+def klow(B0,D_local,d):
+    D_SL = 4.1e-10
+    #d = 4.7e-10
+    gammaH = 4.258e7
+    gammaE = gammaH/1.51671e-3
+
+    tau = d**2.0/(D_local+D_SL)
+
+    omegaI = gammaH*B0*2.0*np.pi
+    omegaS = gammaE*B0*2.0*np.pi
+    zI = np.sqrt(1j*omegaI*tau)
+    zS = np.sqrt(1j*omegaS*tau)
+
+    JI = J(zI,omegaI,D_local,d)
+
+    return 5.0*JI
+
+D_local = np.linspace(0.03,1,num=100)*2.3e-9
+B0 = 0.35
+d = 3.0e-10
+
+plt.plot(2.3e-9/D_local,ksigma(B0,D_local,d)/ksigma(B0,2.3e-9,d),label='ksigma')
+plt.plot(2.3e-9/D_local,klow(B0,D_local,d)/klow(B0,2.3e-9,d),label='klow')
+plt.plot(2.3e-9/D_local,(ksigma(B0,D_local,d)/krho(B0,D_local,d))/(ksigma(B0,2.3e-9,d)/krho(B0,2.3e-9,d)),label='xi')
+plt.legend()
+plt.show()
+
+B = np.linspace(1,1e5,1e6)
+plt.plot(np.log(B),ksigma(B,2.3e-9,d))
+plt.show()

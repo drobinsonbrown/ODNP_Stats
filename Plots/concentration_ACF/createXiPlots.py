@@ -1,0 +1,62 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import glob
+import sys,os
+import re
+
+def wfrac(N):
+    return (800+(N-1)*44*12)/(800+(N-1)*44*12+6000*18)
+
+def main(args):    
+    try:
+        prefix = args[0]
+    except IndexError:
+        prefix = 'xi'
+        
+    yaxis = r'$\xi$'
+         
+    names = glob.glob(prefix+'_'+'PEO12'+'*.txt')
+    length = len(names)
+    N = np.zeros(length)
+    xi = np.zeros(length)
+    xi_low = np.zeros(length)
+    xi_high = np.zeros(length)
+    for i,name in enumerate(names):
+        pattern = '-?\d+\.?\d*'
+        setnums = re.findall(pattern, name)
+        N[i] = float(setnums[len(setnums)-1])
+        data = np.loadtxt(name)
+        xi[i] = data[1]
+      
+        xi_low[i] = data[0]
+        xi_high[i] = data[2]
+
+    newInd = np.argsort(N)
+    N = N[newInd]
+    xi = xi[newInd]
+    print(xi)
+    xi_high = xi_low[newInd]
+    xi_low = xi_low[newInd]
+
+    fig, ax1 = plt.subplots()
+
+    output = np.transpose(np.vstack((wfrac(N)
+                                     ,xi,xi_low,xi_high)))
+    print(output)
+    np.savetxt('XivW.txt',output)
+    
+    for i,x in enumerate(wfrac(N)):
+        
+        ax1.errorbar(x,xi[i],yerr=[[xi_low[i]],[xi_high[i]]],fmt='g.-'
+                     ,capsize=2)
+    ax1.plot(wfrac(N),xi,'g.--',label=prefix)
+    ax1.set_xlabel('weight fraction',fontsize=14)
+    ax1.set_ylabel(yaxis,fontsize=14)
+    #ax1.hold(True)
+
+    plt.savefig(prefix+'.png',dpi=1000)
+    plt.savefig(prefix+'.eps',format='eps')
+    plt.show()
+        
+if __name__ == "__main__":
+  main(sys.argv[1:])
